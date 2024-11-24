@@ -4,7 +4,7 @@ import json
 import edge_tts
 
 app = Quart(__name__)
-
+app.config['PROVIDE_AUTOMATIC_OPTIONS'] = True
 
 @app.route('/')
 async def home():

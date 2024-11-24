@@ -1,5 +1,5 @@
 # ignore virtual environment
-venv
+myenv
 
 # ignore idea files
 .idea
