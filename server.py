@@ -2,7 +2,6 @@ from io import BytesIO
 from flask import Flask
 from flask_socketio import SocketIO, emit
 from segmentParser import synthese
-from pydub import AudioSegment
 
 
 app = Flask(__name__)
@@ -18,8 +17,6 @@ def start_tts(data):
    print("data->",data)
    text = data.get('text', '')
    synthese(text, response)
-
-
 
 @sio.on("connect")
 def on_connect():
