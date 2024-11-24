@@ -1,42 +1,38 @@
-import binascii
-from quart import Quart, request, jsonify, Response, render_template
-import json
-import edge_tts
-
-app = Quart(__name__)
-app.config['PROVIDE_AUTOMATIC_OPTIONS'] = True
-
-@app.route('/')
-async def home():
-    return await render_template('home.html')
+from io import BytesIO
+from flask import Flask
+from flask_socketio import SocketIO, emit
+from segmentParser import synthese
+from pydub import AudioSegment
 
 
-@app.route('/generate', methods=['POST'])
-async def generate():
-    data = await request.get_data()
-    payload = binascii.hexlify(data).decode('utf8')
-    t = {"code": 1, "audio_url": "/tts?payload=" + payload}
-    return jsonify(t)
+app = Flask(__name__)
+sio = SocketIO(app, cors_allowed_origins="*")
+
+def response(bytes):
+    #raw_data = AudioSegment.from_mp3(BytesIO(bytes)).raw_data
+    emit("audio_chunk", bytes)
+
+# WebSocket endpoint for TTS live streaming
+@sio.on("start_tts")
+def start_tts(data):
+   print("data->",data)
+   text = data.get('text', '')
+   synthese(text, response)
 
 
-@app.route('/tts', methods=['GET'])
-async def tts():
-    payload = request.args.get("payload")
-    plaintext = binascii.unhexlify(payload).decode('utf8')
-    json_obj = json.loads(plaintext)
-    content = json_obj["content"]
-    voice = json_obj.get("voice", "zh-CN-XiaoxiaoNeural")
-    headers = {'Transfer-Encoding': 'chunked', 'Content-Type': 'audio/mpeg'}
-    response_content = ms_tts_async(content, voice)
-    return Response(response_content, headers=headers)
+
+@sio.on("connect")
+def on_connect():
+    print("Client connected")
 
 
-async def ms_tts_async(text_input, voice="zh-CN-XiaoxiaoNeural"):
-    communicate = edge_tts.Communicate(text_input, voice)
-    async for chunked in communicate.stream():
-        if chunked["type"] == "audio":
-            yield chunked["data"]
+@sio.on("disconnect")
+def on_disconnect():
+    print("Client disconnected")
 
 
-if __name__ == '__main__':
-    app.run()
+
+# Start the Flask-SocketIO app
+if __name__ == "__main__":
+    sio.run(app, host="0.0.0.0", port=5000, debug=True)
+    
